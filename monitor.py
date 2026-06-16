@@ -42,18 +42,17 @@ def save_state(state):
 # ── 날짜 파싱 ──────────────────────────────────────────
 def parse_dates(soup):
     post_date, apply_date = "", ""
-    for line in soup.get_text("\n").split("\n"):
-        line = line.strip()
-        if not line:
-            continue
-        if "공고게시일" in line or "공고일" in line:
-            dates = re.findall(r"\d{4}[-./]\d{2}[-./]\d{2}", line)
-            if dates:
-                post_date = dates[0]
-        if "청약신청일" in line or "신청일" in line:
-            dates = re.findall(r"\d{4}[-./]\d{2}[-./]\d{2}", line)
-            if dates:
-                apply_date = dates[0]
+    # 전체 텍스트에서 "공고게시일YYYY-MM-DD" 패턴 직접 추출
+    full_text = soup.get_text()
+    
+    m = re.search(r"공고게시일\s*(\d{4}[-./]\d{2}[-./]\d{2})", full_text)
+    if m:
+        post_date = m.group(1)
+    
+    m = re.search(r"청약신청일\s*(\d{4}[-./]\d{2}[-./]\d{2})", full_text)
+    if m:
+        apply_date = m.group(1)
+
     return post_date, apply_date
 
 # ── 단일 boardId 체크 (병렬용) ─────────────────────────
