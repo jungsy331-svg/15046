@@ -31,9 +31,9 @@ def load_state():
         with open(STATE_FILE, "r", encoding="utf-8") as f:
             data = json.load(f)
         if not isinstance(data, dict) or "max_scanned" not in data:
-            return {"max_scanned": 6530, "known_posts": []}
+            return {"max_scanned": 6560, "known_posts": []}
         return data
-    return {"max_scanned": 6530, "known_posts": []}
+    return {"max_scanned": 6560, "known_posts": []}
 
 def save_state(state):
     with open(STATE_FILE, "w", encoding="utf-8") as f:
