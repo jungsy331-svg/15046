@@ -20,23 +20,38 @@ HEADERS = {
     "Referer": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/list.do?menuNo=400008",
 }
 
+# ── 상태 파일 구조 ─────────────────────────────────────
+# {
+#   "max_scanned": 6451,          ← 지금까지 스캔한 최대 boardId
+#   "known_posts": [              ← 민간임대 공고만 저장
+#     {"uid": "6422", "title": "...", "post_date": "...", "apply_date": "...", "url": "..."},
+#     ...
+#   ]
+# }
+
+def load_state():
+    if os.path.exists(STATE_FILE):
+        with open(STATE_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"max_scanned": 6451, "known_posts": []}
+
+def save_state(state):
+    with open(STATE_FILE, "w", encoding="utf-8") as f:
+        json.dump(state, f, ensure_ascii=False, indent=2)
+
 # ── 날짜 파싱 ──────────────────────────────────────────
 def parse_dates(soup):
-    post_date = ""
-    apply_date = ""
+    post_date, apply_date = "", ""
     full_text = soup.get_text("\n")
     for line in full_text.split("\n"):
         line = line.strip()
         if "공고게시일" in line or "공고일" in line:
             dates = re.findall(r"\d{4}[-./]\d{2}[-./]\d{2}", line)
-            if dates:
-                post_date = dates[0]
+            if dates: post_date = dates[0]
         if "청약신청일" in line or "신청일" in line:
             dates = re.findall(r"\d{4}[-./]\d{2}[-./]\d{2}", line)
-            if dates:
-                apply_date = dates[0]
+            if dates: apply_date = dates[0]
     return post_date, apply_date
-
 
 # ── 단일 공고 파싱 ─────────────────────────────────────
 def parse_post(board_id):
@@ -62,72 +77,6 @@ def parse_post(board_id):
         print(f"  [boardId {board_id}] 오류: {e}")
     return None
 
-
-# ── 새 공고 스캔 (앞으로 30칸만) ──────────────────────
-def fetch_new_posts(seen):
-    posts = []
-    known_ids = [int(uid) for uid in seen if uid.isdigit()]
-    start_id = max(known_ids) + 1 if known_ids else 6450
-    end_id = start_id + 30
-    print(f"  → 새 공고 스캔: {start_id} ~ {end_id}")
-    for board_id in range(start_id, end_id):
-        post = parse_post(board_id)
-        if post:
-            posts.append(post)
-            print(f"  → 새 공고: {post['title']}")
-    return posts
-
-
-# ── 최근 5개: seen에서 캐싱된 메타 사용 ───────────────
-def fetch_recent_posts(seen, new_posts, count=5):
-    """
-    새 공고 + 기존 known_ids 역순으로 최대 count개만 파싱
-    이미 파싱한 new_posts는 재사용해서 요청 최소화
-    """
-    # 새 공고를 uid→post 딕셔너리로
-    new_map = {p["uid"]: p for p in new_posts}
-
-    known_ids = sorted([int(uid) for uid in seen if uid.isdigit()], reverse=True)
-
-    recent = []
-    # 새 공고 먼저 추가 (이미 파싱됨, 요청 없음)
-    for p in reversed(new_posts):
-        if len(recent) >= count:
-            break
-        recent.insert(0, p)
-
-    # 부족하면 기존 seen에서 역순으로 파싱 (최대 10개만 시도)
-    tried = 0
-    for board_id in known_ids:
-        if len(recent) >= count:
-            break
-        if tried >= 10:
-            break
-        if str(board_id) in new_map:
-            continue
-        tried += 1
-        post = parse_post(board_id)
-        if post:
-            recent.append(post)
-
-    # 최신순 정렬 (boardId 내림차순)
-    recent.sort(key=lambda p: int(p["uid"]), reverse=True)
-    return recent[:count]
-
-
-# ── 이전 상태 로드/저장 ────────────────────────────────
-def load_seen():
-    if os.path.exists(STATE_FILE):
-        with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return set(json.load(f))
-    return set()
-
-
-def save_seen(seen: set):
-    with open(STATE_FILE, "w", encoding="utf-8") as f:
-        json.dump(list(seen), f, ensure_ascii=False)
-
-
 # ── 텔레그램 전송 ──────────────────────────────────────
 def send_telegram(message: str):
     api_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
@@ -136,26 +85,34 @@ def send_telegram(message: str):
     res.raise_for_status()
     print(f"  → 텔레그램 전송 완료")
 
-
-# ── 초기 씨딩 ──────────────────────────────────────────
-def seed_initial_state():
-    seen = set(str(uid) for uid in range(6332, 6452))
-    save_seen(seen)
-    print(f"  → 초기 상태 등록 완료")
-    return seen
-
-
 # ── 메인 ──────────────────────────────────────────────
 def main():
     print(f"[{datetime.now()}] 모니터링 시작...")
 
-    seen = load_seen()
-    if not seen:
-        seen = seed_initial_state()
+    state = load_state()
+    max_scanned = state["max_scanned"]
+    known_posts = state["known_posts"]  # 민간임대 공고만 담긴 리스트
+    known_uids = {p["uid"] for p in known_posts}
 
-    # 1) 새 공고 스캔
-    new_posts = fetch_new_posts(seen)
+    # 1) 새 boardId 범위만 스캔 (최대 30개)
+    start_id = max_scanned + 1
+    end_id = start_id + 30
+    print(f"  → 새 공고 스캔: {start_id} ~ {end_id}")
 
+    new_posts = []
+    for board_id in range(start_id, end_id):
+        post = parse_post(board_id)
+        if post and post["uid"] not in known_uids:
+            new_posts.append(post)
+            known_posts.append(post)
+            known_uids.add(post["uid"])
+            print(f"  → 새 공고: {post['title']}")
+
+    # max_scanned 업데이트
+    state["max_scanned"] = end_id - 1
+    state["known_posts"] = known_posts
+
+    # 2) 새 공고 알림
     if new_posts:
         for p in new_posts:
             post_date_line = f"📅 공고게시일: {p['post_date']}" if p['post_date'] else ""
@@ -168,26 +125,22 @@ def main():
                 f"🔗 {p['url']}"
             )
             send_telegram(msg)
-            seen.add(p["uid"])
     else:
         send_telegram("새로운 공고가 없습니다😭 내일 다시 확인해보겠습니다!")
 
-    # 2) 최근 5개 (새 공고 재사용 → 추가 요청 최소화)
-    print("  → 최근 5개 공고 조회 중...")
-    recent_posts = fetch_recent_posts(seen, new_posts, count=5)
-
-    if recent_posts:
+    # 3) 최근 5개 (저장된 리스트에서 바로 꺼냄 → 추가 요청 없음)
+    recent = sorted(known_posts, key=lambda p: int(p["uid"]), reverse=True)[:5]
+    if recent:
         lines = ["📋 최근 민간임대 공고 Newest 5\n"]
-        for i, p in enumerate(recent_posts, 1):
+        for i, p in enumerate(recent, 1):
             post_date_line = f"📅 공고게시일: {p['post_date']}" if p['post_date'] else ""
             apply_date_line = f"📝 청약신청일: {p['apply_date']}" if p['apply_date'] else ""
             date_info = "  |  ".join(filter(None, [post_date_line, apply_date_line]))
             lines.append(f"{i}. {p['title']}\n{date_info}\n🔗 {p['url']}\n")
         send_telegram("\n".join(lines))
 
-    save_seen(seen)
+    save_state(state)
     print(f"[{datetime.now()}] 완료")
-
 
 if __name__ == "__main__":
     main()
