@@ -2,8 +2,7 @@ name: 청년안심주택 민간임대 공고 모니터링
 
 on:
   schedule:
-    # 매일 오전 8시 (KST) = UTC 23:00 (전날)
-    - cron: "0 23 * * *"
+    - cron: "0 23 * * *"  # 매일 오전 8시 KST
   workflow_dispatch:
 
 jobs:
@@ -22,14 +21,6 @@ jobs:
       - name: 패키지 설치
         run: pip install requests beautifulsoup4
 
-      - name: seen_posts.json 복원 (캐시)
-        uses: actions/cache@v4
-        with:
-          path: seen_posts.json
-          key: seen-posts-${{ github.run_id }}
-          restore-keys: |
-            seen-posts-
-
       - name: 모니터링 실행
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
@@ -43,4 +34,3 @@ jobs:
           git add seen_posts.json || true
           git diff --cached --quiet || git commit -m "chore: update seen posts [skip ci]"
           git push || true
-
