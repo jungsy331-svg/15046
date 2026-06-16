@@ -151,10 +151,9 @@ def main():
     if recent:
         lines = ["📋 최근 민간임대 공고 Newest 5\n"]
         for i, p in enumerate(recent, 1):
-            post_date_line = f"📅 공고게시일: {p['post_date']}" if p['post_date'] else ""
-            apply_date_line = f"📝 청약신청일: {p['apply_date']}" if p['apply_date'] else ""
-            date_info = "  |  ".join(filter(None, [post_date_line, apply_date_line]))
-            lines.append(f"{i}. {p['title']}\n{date_info}\n🔗 {p['url']}\n")
+            post_date_line = f"📅 공고게시일: {p['post_date']}" if p.get('post_date') else "📅 공고게시일: -"
+            apply_date_line = f"📝 청약신청일: {p['apply_date']}" if p.get('apply_date') else "📝 청약신청일: -"
+            lines.append(f"{i}. {p['title']}\n{post_date_line}  |  {apply_date_line}\n🔗 {p['url']}\n")
         send_telegram("\n".join(lines))
 
     save_state(state)
