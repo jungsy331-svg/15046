@@ -2,8 +2,8 @@ name: 청년안심주택 민간임대 공고 모니터링
 
 on:
   schedule:
-    - cron: "0,30 23 * * *"
-    - cron: "0,30 0-14 * * *"
+    # 매일 오전 8시 (KST) = UTC 23:00 (전날)
+    - cron: "0 23 * * *"
   workflow_dispatch:
 
 jobs:
@@ -43,3 +43,4 @@ jobs:
           git add seen_posts.json || true
           git diff --cached --quiet || git commit -m "chore: update seen posts [skip ci]"
           git push || true
+
