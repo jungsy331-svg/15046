@@ -38,7 +38,7 @@ def parse_dates(soup):
     return post_date, apply_date
 
 
-# ── 단일 공고 페이지 파싱 ──────────────────────────────
+# ── 단일 공고 파싱 ─────────────────────────────────────
 def parse_post(board_id):
     url = f"{BASE_URL}/youth/bbs/BMSR00015/view.do?boardId={board_id}&menuNo=400008"
     try:
@@ -63,33 +63,56 @@ def parse_post(board_id):
     return None
 
 
-# ── 새 공고 스캔 ───────────────────────────────────────
+# ── 새 공고 스캔 (앞으로 30칸만) ──────────────────────
 def fetch_new_posts(seen):
     posts = []
     known_ids = [int(uid) for uid in seen if uid.isdigit()]
     start_id = max(known_ids) + 1 if known_ids else 6450
     end_id = start_id + 30
-    print(f"  → 새 공고 스캔: boardId {start_id} ~ {end_id}")
+    print(f"  → 새 공고 스캔: {start_id} ~ {end_id}")
     for board_id in range(start_id, end_id):
         post = parse_post(board_id)
         if post:
             posts.append(post)
-            print(f"  → 새 공고 발견: {post['title']}")
+            print(f"  → 새 공고: {post['title']}")
     return posts
 
 
-# ── 최근 5개 공고 조회 ─────────────────────────────────
-def fetch_recent_posts(seen, count=5):
-    """seen에 있는 최근 boardId 기준으로 역순 조회"""
+# ── 최근 5개: seen에서 캐싱된 메타 사용 ───────────────
+def fetch_recent_posts(seen, new_posts, count=5):
+    """
+    새 공고 + 기존 known_ids 역순으로 최대 count개만 파싱
+    이미 파싱한 new_posts는 재사용해서 요청 최소화
+    """
+    # 새 공고를 uid→post 딕셔너리로
+    new_map = {p["uid"]: p for p in new_posts}
+
     known_ids = sorted([int(uid) for uid in seen if uid.isdigit()], reverse=True)
+
     recent = []
+    # 새 공고 먼저 추가 (이미 파싱됨, 요청 없음)
+    for p in reversed(new_posts):
+        if len(recent) >= count:
+            break
+        recent.insert(0, p)
+
+    # 부족하면 기존 seen에서 역순으로 파싱 (최대 10개만 시도)
+    tried = 0
     for board_id in known_ids:
         if len(recent) >= count:
             break
+        if tried >= 10:
+            break
+        if str(board_id) in new_map:
+            continue
+        tried += 1
         post = parse_post(board_id)
         if post:
             recent.append(post)
-    return recent
+
+    # 최신순 정렬 (boardId 내림차순)
+    recent.sort(key=lambda p: int(p["uid"]), reverse=True)
+    return recent[:count]
 
 
 # ── 이전 상태 로드/저장 ────────────────────────────────
@@ -134,7 +157,6 @@ def main():
     new_posts = fetch_new_posts(seen)
 
     if new_posts:
-        # 새 공고 알림
         for p in new_posts:
             post_date_line = f"📅 공고게시일: {p['post_date']}" if p['post_date'] else ""
             apply_date_line = f"📝 청약신청일: {p['apply_date']}" if p['apply_date'] else ""
@@ -147,16 +169,12 @@ def main():
             )
             send_telegram(msg)
             seen.add(p["uid"])
-
     else:
-        # 새 공고 없음 메시지
-        print("  → 새 공고 없음, 안내 메시지 전송")
-        no_new_msg = "새로운 공고가 없습니다😭 내일 다시 확인해보겠습니다!"
-        send_telegram(no_new_msg)
+        send_telegram("새로운 공고가 없습니다😭 내일 다시 확인해보겠습니다!")
 
-    # 2) 최근 5개 공고 항상 전송
+    # 2) 최근 5개 (새 공고 재사용 → 추가 요청 최소화)
     print("  → 최근 5개 공고 조회 중...")
-    recent_posts = fetch_recent_posts(seen, count=5)
+    recent_posts = fetch_recent_posts(seen, new_posts, count=5)
 
     if recent_posts:
         lines = ["📋 최근 민간임대 공고 Newest 5\n"]
