@@ -32,7 +32,12 @@ HEADERS = {
 def load_state():
     if os.path.exists(STATE_FILE):
         with open(STATE_FILE, "r", encoding="utf-8") as f:
-            return json.load(f)
+            data = json.load(f)
+        # 구 형식(list) → 새 형식(dict) 자동 변환
+        if isinstance(data, list):
+            print("  → 구 형식 seen_posts.json 감지, 자동 변환 중...")
+            return {"max_scanned": 6451, "known_posts": []}
+        return data
     return {"max_scanned": 6451, "known_posts": []}
 
 def save_state(state):
@@ -77,13 +82,22 @@ def parse_post(board_id):
         print(f"  [boardId {board_id}] 오류: {e}")
     return None
 
-# ── 텔레그램 전송 ──────────────────────────────────────
-def send_telegram(message: str):
+# ── 텔레그램 전송 (재시도 포함) ───────────────────────
+def send_telegram(message: str, retries=3):
     api_url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
     payload = {"chat_id": TELEGRAM_CHAT_ID, "text": message}
-    res = requests.post(api_url, json=payload, timeout=10)
-    res.raise_for_status()
-    print(f"  → 텔레그램 전송 완료")
+    for attempt in range(1, retries + 1):
+        try:
+            res = requests.post(api_url, json=payload, timeout=30)
+            res.raise_for_status()
+            print(f"  → 텔레그램 전송 완료")
+            return
+        except Exception as e:
+            print(f"  → 텔레그램 전송 실패 (시도 {attempt}/{retries}): {e}")
+            if attempt < retries:
+                import time
+                time.sleep(5)
+    print("  → 텔레그램 전송 최종 실패, 계속 진행")
 
 # ── 메인 ──────────────────────────────────────────────
 def main():
