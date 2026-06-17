@@ -26,7 +26,7 @@ TIMEOUT      = 7
 
 # Elyes
 ELYES_BASE   = "https://www.elyes.co.kr"
-ELYES_SEED   = f"{ELYES_BASE}/post/recruit/detail?i_sNtCode=BHCT&nt_idx=xD9K8A2s1pMXU9l0RUHKcQ%3D%3D"
+ELYES_SEED   = f"{ELYES_BASE}/post/recruit/detail?i_sNtCode=BHCT&nt_idx=Zi4TSTH9NEy7/LHaBpX8xg%3D%3D"
 ELYES_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
     "Referer": f"{ELYES_BASE}/post/recruit",
