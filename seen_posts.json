@@ -1,5 +1,5 @@
 {
-  "max_scanned": 6650,
+  "max_scanned": 6680,
   "known_posts": [
     {
       "uid": "6561",
@@ -21,6 +21,13 @@
       "post_date": "2026-06-16",
       "apply_date": "2026-06-26",
       "url": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6564&menuNo=400008"
+    }
+  ],
+  "known_elyes": [
+    {
+      "uid": "elyes_xD9K8A2s1pMXU9l0RUHK",
+      "title": "[어바니엘 한강] 공실세대 모집공고 (접수기간: 08/22 ~ 08/25)",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=xD9K8A2s1pMXU9l0RUHKcQ%3D%3D"
     }
   ]
 }
