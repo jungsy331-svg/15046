@@ -1,0 +1,26 @@
+{
+  "max_scanned": 6590,
+  "known_posts": [
+    {
+      "uid": "6561",
+      "title": "[민간임대] 길동역 길동생활(B동) 추가모집공고",
+      "post_date": "2026-06-04",
+      "apply_date": "2026-06-10",
+      "url": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6561&menuNo=400008"
+    },
+    {
+      "uid": "6562",
+      "title": "[민간임대] 광흥창역 이랜드PEER신촌 추가모집공고",
+      "post_date": "2026-06-11",
+      "apply_date": "2026-06-15",
+      "url": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6562&menuNo=400008"
+    },
+    {
+      "uid": "6564",
+      "title": "[민간임대] 청량리역 퀸즈W 청량리역 최초모집공고",
+      "post_date": "2026-06-16",
+      "apply_date": "2026-06-26",
+      "url": "https://soco.seoul.go.kr/youth/bbs/BMSR00015/view.do?boardId=6564&menuNo=400008"
+    }
+  ]
+}
