@@ -1,5 +1,5 @@
 {
-  "max_scanned": 6800,
+  "max_scanned": 6830,
   "known_posts": [
     {
       "uid": "6561",
@@ -24,6 +24,31 @@
     }
   ],
   "known_elyes": [
+    {
+      "uid": "elyes_ihUmvn86xNDfDtFoe71FLw%3d",
+      "title": "[어바니엘 충정로] 공실세대 모집공고 (공고일:'25.5.8.)",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=ihUmvn86xNDfDtFoe71FLw%3d%3d"
+    },
+    {
+      "uid": "elyes_kay12PL30b3cy4WJjSIZQQ%3d",
+      "title": "[사송 롯데캐슬] 재임대 모집공고(접수기간 : 25.05.14~25.05.18)",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=kay12PL30b3cy4WJjSIZQQ%3d%3d"
+    },
+    {
+      "uid": "elyes_1QJmyPj7ghzcp3ohDJkWDg%3d",
+      "title": "[한강 롯데캐슬 22단지] 재임대 모집공고(공고일 25.05.30)_수정__마감되었습니다",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=1QJmyPj7ghzcp3ohDJkWDg%3d%3d"
+    },
+    {
+      "uid": "elyes_plTb9ZqnOyVGKWtLY2Py7w%3d",
+      "title": "[하단 롯데캐슬]재임대 모집공고문(모집기간:25.06.10~25.06.15)--------------->마감",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=plTb9ZqnOyVGKWtLY2Py7w%3d%3d"
+    },
+    {
+      "uid": "elyes_lGY7Pfu%2bY0aRjQ%2fJUZMth",
+      "title": "[사송 롯데캐슬] 재임대 모집공고(접수기간 : 25.06.11~25.06.15)",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=lGY7Pfu%2bY0aRjQ%2fJUZMthA%3d%3d"
+    },
     {
       "uid": "elyes_QwUGCfg0uiI5QZ37Afwppg%3d",
       "title": "[어바니엘 천호]공실세대 모집공고(접수기간 7/18~7/22)",
