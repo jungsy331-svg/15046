@@ -10,23 +10,22 @@ import re
 # ══════════════════════════════════════════════════════
 # 설정
 # ══════════════════════════════════════════════════════
-TELEGRAM_TOKEN  = os.environ["TELEGRAM_TOKEN"]
+TELEGRAM_TOKEN   = os.environ["TELEGRAM_TOKEN"]
 TELEGRAM_CHAT_ID = os.environ["TELEGRAM_CHAT_ID"]
-CHAT_IDS = [cid.strip() for cid in TELEGRAM_CHAT_ID.split(",") if cid.strip()]
+CHAT_IDS  = [cid.strip() for cid in TELEGRAM_CHAT_ID.split(",") if cid.strip()]
 STATE_FILE = "seen_posts.json"
 
 # 청년안심주택
-SOCO_BASE   = "https://soco.seoul.go.kr"
-SOCO_HEADERS = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"
-}
+SOCO_BASE    = "https://soco.seoul.go.kr"
+SOCO_HEADERS = {"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36"}
 SCAN_RANGE   = 30
 MAX_WORKERS  = 10
 TIMEOUT      = 7
 
-# Elyes
-ELYES_BASE   = "https://www.elyes.co.kr"
-ELYES_SEED   = f"{ELYES_BASE}/post/recruit/detail?i_sNtCode=BHCT&nt_idx=Zi4TSTH9NEy7/LHaBpX8xg%3D%3D"
+# Elyes - 최신 공고 URL로 업데이트 (2026.04.03 공고)
+ELYES_BASE    = "https://www.elyes.co.kr"
+# 최신 알려진 공고: [문래 롯데캐슬] 재임대 모집공고(공고일 26.04.03)
+ELYES_SEED    = f"{ELYES_BASE}/post/recruit/detail?i_sNtCode=BHCT&nt_idx=Zi4TSTH9NEy7%2FLHaBpX8xg%3D%3D"
 ELYES_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
     "Referer": f"{ELYES_BASE}/post/recruit",
@@ -37,8 +36,8 @@ ELYES_HEADERS = {
 # ══════════════════════════════════════════════════════
 DEFAULT_STATE = {
     "max_scanned": 6560,
-    "known_posts": [],   # 청년안심주택 민간임대
-    "known_elyes": [],   # Elyes
+    "known_posts": [],   # 청년안심주택
+    "known_elyes": [],   # Elyes (최신순)
 }
 
 def load_state():
@@ -47,7 +46,6 @@ def load_state():
             with open(STATE_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
             if isinstance(data, dict) and "max_scanned" in data:
-                # 누락 키 보완
                 for k, v in DEFAULT_STATE.items():
                     data.setdefault(k, v)
                 return data
@@ -67,11 +65,7 @@ def send_telegram(message: str, retries=2):
     for chat_id in CHAT_IDS:
         for attempt in range(1, retries + 1):
             try:
-                res = requests.post(
-                    api_url,
-                    json={"chat_id": chat_id, "text": message},
-                    timeout=15
-                )
+                res = requests.post(api_url, json={"chat_id": chat_id, "text": message}, timeout=15)
                 res.raise_for_status()
                 print(f"  → 전송 완료 ({chat_id})")
                 break
@@ -104,13 +98,8 @@ def check_board(board_id):
         title_tag = soup.select_one(".bbs-view-title, .board-view-title, h3.tit, .subject, h4")
         title = title_tag.get_text(strip=True) if title_tag else f"민간임대 공고 #{board_id}"
         post_date, apply_date = parse_dates(soup.get_text())
-        return board_id, {
-            "uid": str(board_id),
-            "title": title,
-            "post_date": post_date,
-            "apply_date": apply_date,
-            "url": url,
-        }
+        return board_id, {"uid": str(board_id), "title": title,
+                          "post_date": post_date, "apply_date": apply_date, "url": url}
     except Exception:
         return board_id, None
 
@@ -141,7 +130,6 @@ def monitor_soco(state):
     state["max_scanned"] = end_id - 1
     state["known_posts"] = known_posts
 
-    # 알림
     if new_posts:
         for p in new_posts:
             date_info = "\n".join(filter(None, [
@@ -152,7 +140,6 @@ def monitor_soco(state):
     else:
         send_telegram("새로운 청년안심주택 공고가 없습니다😭 내일 다시 확인해보겠습니다!")
 
-    # Newest 5
     recent = sorted(known_posts, key=lambda p: int(p["uid"]), reverse=True)[:5]
     if recent:
         lines = ["📋 최근 민간임대 공고 Newest 5\n"]
@@ -166,96 +153,168 @@ def monitor_soco(state):
 # Elyes
 # ══════════════════════════════════════════════════════
 def fetch_elyes_page(url):
-    """단일 페이지 요청 → (제목, 이전글url, 다음글url) 반환"""
+    """
+    Elyes 공고 상세 페이지 파싱
+    반환: (제목, 이전글_url, 다음글_url)
+    - 이전글 = 더 최신 공고
+    - 다음글 = 더 오래된 공고
+    HTML이 정적으로 제공되므로 BeautifulSoup으로 안정적으로 파싱 가능
+    """
     try:
         res = requests.get(url, headers=ELYES_HEADERS, timeout=TIMEOUT)
         if res.status_code != 200:
             return None, None, None
         soup = BeautifulSoup(res.text, "html.parser")
-        text = soup.get_text("\n")
 
-        # 제목: 날짜 직전 줄
-        title = ""
-        lines = [l.strip() for l in text.split("\n") if l.strip()]
-        for i, line in enumerate(lines):
-            if re.match(r"\d{4}\.\d{2}\.\d{2}", line) and i > 0:
-                title = lines[i - 1]
+        # 제목: h2/h3/h4 또는 날짜 바로 위 텍스트
+        title = None
+        for sel in ["h2.tit", "h3.tit", "h4.tit", ".view-title", ".board-tit"]:
+            tag = soup.select_one(sel)
+            if tag:
+                title = tag.get_text(strip=True)
                 break
+        if not title:
+            # 날짜(YYYY.MM.DD) 직전 줄을 제목으로
+            lines = [l.strip() for l in soup.get_text("\n").split("\n") if l.strip()]
+            for i, line in enumerate(lines):
+                if re.match(r"\d{4}\.\d{2}\.\d{2}$", line) and i > 0:
+                    title = lines[i - 1]
+                    break
 
-        # 이전글(더 최신) / 다음글(더 오래된) 링크
+        # 이전글/다음글 링크: <a> 텍스트에 제목이 포함된 패턴
+        # HTML 구조: "이전글\n[제목](url)" 또는 "다음글\n[제목](url)"
         prev_url = next_url = None
-        for a in soup.select("a[href*='recruit/detail']"):
-            label = a.get_text(strip=True)
-            href  = a["href"]
-            full  = f"{ELYES_BASE}{href}" if href.startswith("/") else href
-            if "이전글" in label and not prev_url:
+        all_links = soup.find_all("a", href=True)
+        for a in all_links:
+            href = a.get("href", "")
+            # nt_idx 포함된 링크만
+            if "nt_idx" not in href:
+                continue
+            full = href if href.startswith("http") else f"{ELYES_BASE}{href}"
+            # 부모/형제 텍스트에서 이전글/다음글 판별
+            parent_text = ""
+            if a.parent:
+                parent_text = a.parent.get_text()
+            if a.previous_sibling:
+                sib = str(a.previous_sibling)
+                parent_text += sib
+            if "이전글" in parent_text and not prev_url:
                 prev_url = full
-            if "다음글" in label and not next_url:
+            elif "다음글" in parent_text and not next_url:
                 next_url = full
 
+        # fallback: 페이지 전체 텍스트에서 이전글/다음글 블록 파싱
+        if not prev_url and not next_url:
+            page_text = soup.get_text("\n")
+            for a in all_links:
+                href = a.get("href", "")
+                if "nt_idx" not in href:
+                    continue
+                full = href if href.startswith("http") else f"{ELYES_BASE}{href}"
+                # a 태그 위치 기준으로 앞 100자 확인
+                idx = page_text.find(a.get_text(strip=True)[:10])
+                if idx > 0:
+                    context = page_text[max(0, idx-100):idx]
+                    if "이전글" in context and not prev_url:
+                        prev_url = full
+                    elif "다음글" in context and not next_url:
+                        next_url = full
+
         return title, prev_url, next_url
+
     except Exception as e:
-        print(f"  [Elyes] 요청 오류 ({url[:60]}): {e}")
+        print(f"  [Elyes] 파싱 오류: {e}")
         return None, None, None
 
 def make_elyes_uid(url):
     m = re.search(r"nt_idx=([^&]+)", url)
-    return f"elyes_{m.group(1)[:20]}" if m else f"elyes_{url[-20:]}"
+    return f"elyes_{m.group(1)[:25]}" if m else f"elyes_{url[-25:]}"
+
+def fetch_elyes_newest(seed_url, max_hops=20):
+    """
+    seed_url에서 이전글(최신) 방향으로 계속 따라가서
+    가장 최신 공고 URL 반환
+    """
+    current = seed_url
+    visited = set()
+    while True:
+        if current in visited:
+            break
+        visited.add(current)
+        _, prev_url, _ = fetch_elyes_page(current)
+        if prev_url and prev_url not in visited and len(visited) <= max_hops:
+            current = prev_url
+        else:
+            break
+    return current
+
+def fetch_elyes_top5(start_url):
+    """
+    start_url(최신 공고)에서 다음글(오래된) 방향으로 5개 수집
+    페이지당 1회 요청, 총 최대 5회
+    """
+    posts = []
+    current = start_url
+    visited = set()
+
+    while len(posts) < 5 and current and current not in visited:
+        visited.add(current)
+        title, _, next_url = fetch_elyes_page(current)
+        if title:
+            posts.append({
+                "uid":   make_elyes_uid(current),
+                "title": title,
+                "url":   current,
+            })
+            print(f"  [Elyes] 수집: {title}")
+        current = next_url
+
+    return posts
 
 def monitor_elyes(state):
     known_elyes = state.get("known_elyes", [])
     seen_uids   = {p["uid"] for p in known_elyes}
 
-    # 시작점: 저장된 최신 공고 URL 또는 seed
-    start_url = known_elyes[0]["url"] if known_elyes else ELYES_SEED
+    # 시작점 결정
+    # known_elyes가 있으면 저장된 최신 URL에서 이전글 방향 탐색
+    # 없으면 seed에서 시작
+    if known_elyes:
+        # 최신 공고에서 이전글 방향으로 새 공고 탐색 (최대 10 hops)
+        latest_url = fetch_elyes_newest(known_elyes[0]["url"], max_hops=10)
+    else:
+        # 첫 실행: seed에서 최신까지 탐색
+        print("  [Elyes] 초기 실행: 최신 공고 탐색 중...")
+        latest_url = fetch_elyes_newest(ELYES_SEED, max_hops=30)
 
-    # 1) 이전글 방향으로 올라가며 최신 공고 찾기 (최대 5번)
-    latest_url = start_url
-    visited = {start_url}
-    for _ in range(5):
-        _, prev_url, _ = fetch_elyes_page(latest_url)
-        if prev_url and prev_url not in visited:
-            latest_url = prev_url
-            visited.add(prev_url)
-        else:
-            break
+    print(f"  [Elyes] 최신 공고 URL: {latest_url[:80]}")
 
-    # 2) 최신 URL부터 다음글 방향으로 5개 수집 (페이지당 1회 요청)
-    posts = []
-    current_url = latest_url
-    visited2 = set()
-    while len(posts) < 5 and current_url and current_url not in visited2:
-        visited2.add(current_url)
-        title, _, next_url = fetch_elyes_page(current_url)
-        if title:
-            posts.append({
-                "uid":   make_elyes_uid(current_url),
-                "title": title,
-                "url":   current_url,
-            })
-        current_url = next_url
+    # 최신 URL부터 5개 수집
+    posts = fetch_elyes_top5(latest_url)
 
     if not posts:
-        print("  [Elyes] 공고 파싱 실패")
+        print("  [Elyes] 공고 수집 실패")
         send_telegram("새로운 Elyes 공고가 없습니다😭 내일 다시 확인해보겠습니다!")
+        state["known_elyes"] = known_elyes
         return
 
+    # 새 공고 = 수집된 것 중 seen에 없는 것
     new_posts = [p for p in posts if p["uid"] not in seen_uids]
 
     if new_posts:
         for p in new_posts:
             send_telegram(f"🏢 Elyes 새 모집공고!\n\n📌 {p['title']}\n🔗 {p['url']}")
             print(f"  [Elyes] 알림: {p['title']}")
+        # known_elyes: 새 공고를 앞에 추가, 최대 20개 유지
         state["known_elyes"] = (new_posts + known_elyes)[:20]
     else:
         send_telegram("새로운 Elyes 공고가 없습니다😭 내일 다시 확인해보겠습니다!")
         print("  [Elyes] 새 공고 없음")
-        state["known_elyes"] = known_elyes  # 변경 없어도 명시적 저장
+        # known_elyes 최신 상태로 갱신 (최신 URL이 바뀌었을 수 있으므로)
+        state["known_elyes"] = known_elyes
 
-    # Newest 5
-    recent = (new_posts + known_elyes)[:5]
-    lines  = ["📋 최근 Elyes 공고 Newest 5\n"]
-    for i, p in enumerate(recent, 1):
+    # Newest 5 (수집된 것 = 이미 최신순)
+    lines = ["📋 최근 Elyes 공고 Newest 5\n"]
+    for i, p in enumerate(posts[:5], 1):
         lines.append(f"{i}. {p['title']}\n🔗 {p['url']}\n")
     send_telegram("\n".join(lines))
 
@@ -264,7 +323,6 @@ def monitor_elyes(state):
 # ══════════════════════════════════════════════════════
 def main():
     print(f"[{datetime.now()}] 모니터링 시작")
-
     state = load_state()
 
     print("\n[1/2] 청년안심주택 민간임대")
