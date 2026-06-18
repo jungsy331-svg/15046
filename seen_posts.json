@@ -1,5 +1,5 @@
 {
-  "max_scanned": 6830,
+  "max_scanned": 6860,
   "known_posts": [
     {
       "uid": "6561",
@@ -24,6 +24,31 @@
     }
   ],
   "known_elyes": [
+    {
+      "uid": "elyes_NEvZECXePDB0VWhwceaD4A%3d",
+      "title": "[사송 롯데캐슬] 재임대 모집공고(접수기간 : 25.03.19~25.03.23)",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=NEvZECXePDB0VWhwceaD4A%3d%3d"
+    },
+    {
+      "uid": "elyes_WyIxqKMP5ufHcOFEqttqoQ%3d",
+      "title": "[한강 롯데캐슬 22단지] 재임대 모집공고(공고일 25.03.24)__마감되었습니다.",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=WyIxqKMP5ufHcOFEqttqoQ%3d%3d"
+    },
+    {
+      "uid": "elyes_kjxtrJxcdgd%2fqPjwuK5WTw%",
+      "title": "[하단 롯데캐슬]재임대 모집공고(공고일:25.04.04)-------------->마감",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=kjxtrJxcdgd%2fqPjwuK5WTw%3d%3d"
+    },
+    {
+      "uid": "elyes_Bse2VJlNOhcst9fFIZi7ig%3d",
+      "title": "[용산 남영역 롯데캐슬 헤리티지] 모집공고문 안내 (공고일:'25.4.9.)",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=Bse2VJlNOhcst9fFIZi7ig%3d%3d"
+    },
+    {
+      "uid": "elyes_jpG9Ch1Jg5LMfJQuwKRrxQ%3d",
+      "title": "[사송 롯데캐슬] 재임대 모집공고 (접수기간:25.04.17-25.04.20)",
+      "url": "https://www.elyes.co.kr/post/recruit/detail?i_sNtCode=BHCT&nt_idx=jpG9Ch1Jg5LMfJQuwKRrxQ%3d%3d"
+    },
     {
       "uid": "elyes_ihUmvn86xNDfDtFoe71FLw%3d",
       "title": "[어바니엘 충정로] 공실세대 모집공고 (공고일:'25.5.8.)",
