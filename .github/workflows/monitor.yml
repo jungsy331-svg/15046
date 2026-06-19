@@ -2,11 +2,8 @@ name: 청년안심주택 민간임대 공고 모니터링
 
 on:
   schedule:
-    - cron: "0 13 * * *"
-  workflow_dispatch:
-  push:
-    branches:
-      - main
+    - cron: "0 4 * * *"   # 매일 오후 1시 KST (UTC 04:00)
+  workflow_dispatch:        # 수동 실행만 허용 (push 트리거 제거)
 
 jobs:
   monitor:
